@@ -1,0 +1,136 @@
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy.ndimage as sn
+cap = cv2.VideoCapture('g.avi')
+
+frameCount = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+frameWidth = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+frameHeight = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+print(frameWidth)
+print(frameHeight)
+print(frameCount)
+
+
+fc = 0
+ret = True
+
+while (fc < frameCount  and ret):
+    ret, buf[fc] = cap.read()
+    fc += 1
+
+cap.release()
+
+data = np.mean(buf[:,:,:,:], axis=-1)
+
+print("Data array dimensions:", data.shape)
+print("Number of frames:", data.shape[0])
+
+f = data[0,:,:] # extract the first frame
+
+plt.imshow(f)
+
+x_min = 100
+x_max = 450
+y_min = 0
+y_max = 1000
+
+
+plt.figure(figsize=(7,7))
+plt.imshow(f)
+plt.axvline(x_min)
+plt.axvline(x_max)
+plt.axhline(y_min)
+plt.axhline(y_max)
+
+f_cropped = data[0, y_min:y_max, x_min:x_max]
+
+# Cropped figure
+plt.figure(figsize=(7,7))
+plt.imshow(f_cropped)
+
+def pencilcase_coords(image, thresh):
+    
+    # Threshold the image
+    bw = (image < thresh).astype(int)
+    
+    # Label the blobs
+    labels, n = sn.label(bw)
+    
+    sizes = sn.sum(bw, labels, range(1, n+1))
+    idx = np.argmax(sizes)
+    
+    y, x = sn.center_of_mass(bw, labels, idx + 1) 
+    
+    return x, y
+
+t = 80
+
+f = data[0, y_min:y_max, x_min:x_max]
+plt.figure()
+plt.imshow(f)
+
+f_threshold = (f > t).astype(int)
+plt.figure()
+plt.imshow(f_threshold)
+
+x, y = pencilcase_coords(f, t)
+plt.scatter(x, y, color="black", marker="x")
+
+
+# Define some constants: number of frames to analyse, and threshold value
+num_frames = 33
+thresh = 80
+
+# Create arrays for storing 
+x_pos_array = np.zeros(num_frames)
+y_pos_array = np.zeros(num_frames)
+
+# Loop through frames in defined range
+for i in range(num_frames):
+    
+    # Extract current frame
+    f = data[i, y_min:y_max, x_min:x_max]
+    
+    # Add code to obtain the x and y coordinates of the largest
+    # particle in the current frame
+    x_pos, y_pos = pencilcase_coords(f, thresh)
+    
+    # Store the current coordinates in the corresponding position
+    x_pos_array[i] = x_pos
+    y_pos_array[i] = y_pos
+
+
+# Plot particle trajectory
+plt.figure(figsize=(5,5))
+ax = plt.gca()
+ax.set_facecolor('k')
+
+plt.plot(x_pos_array, y_pos_array, 'w-')
+plt.xlim(0, x_max-x_min)
+plt.ylim(0, y_max-y_min)
+
+ax.invert_yaxis()
+ax.set_aspect('equal')
+
+print(y_pos_array)
+
+time = np.arange(1,33+1)
+
+Y_0 = -y_pos_array[0]
+g = 9.8
+
+Y = Y_0 - 0.5*g*(time**2)
+print(Y)
+
+plt.figure(figsize=(12,6))
+plt.plot(-y_pos_array[18:33], label="experiment")
+plt.plot(Y, label="model")
+plt.ylim(-600,50)
+plt.xlim(0,15)
+
+plt.xlabel("time")
+plt.ylabel("position")
+plt.title("g value")
+plt.legend()
